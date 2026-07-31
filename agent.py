@@ -1,4 +1,15 @@
 # agent.py
+class SimpleReflexAgent:
+    """A stateless condition-action agent for partial percepts."""
+
+    def sense_and_act(self, percept: dict) -> str:
+        if percept.get('food_here'):
+            return 'Suck'
+        if percept.get('wall_ahead'):
+            return 'Left'
+        return 'Up'
+
+
 class GreedyGridAgent:
     """A simple agent that tries to move around systematically to clear the grid."""
 
