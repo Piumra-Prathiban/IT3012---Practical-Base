@@ -10,6 +10,7 @@ class VisualGridHuntGame:
         self.width = width
         self.height = height
         self.agent_pos = [0, 0]  # Starting position (x, y)
+        self.facing_direction = 'Right'
 
         if custom_walls is not None:
             self.walls = set(custom_walls)
@@ -40,14 +41,23 @@ class VisualGridHuntGame:
         self.collision = False
 
     def get_percept(self) -> dict:
+        dx, dy = {
+            'Up': (0, 1),
+            'Down': (0, -1),
+            'Left': (-1, 0),
+            'Right': (1, 0)
+        }[self.facing_direction]
+
+        ahead_pos = (self.agent_pos[0] + dx, self.agent_pos[1] + dy)
+        wall_ahead = (
+            ahead_pos[0] < 0 or ahead_pos[0] >= self.width or
+            ahead_pos[1] < 0 or ahead_pos[1] >= self.height or
+            ahead_pos in self.walls
+        )
+
         return {
-            'agent_pos': list(self.agent_pos),
-            'opponent_positions': [list(op) for op in self.opponents],
-            'smells_food': tuple(self.agent_pos) in self.food_positions,
-            'hit_wall': tuple(self.agent_pos) in self.walls,
-            'collision': self.collision,
-            'score': self.score,
-            'remaining_food': len(self.food_positions)
+            'wall_ahead': wall_ahead,
+            'food_here': tuple(self.agent_pos) in self.food_positions
         }
 
     def execute_action(self, action: str):
@@ -55,12 +65,16 @@ class VisualGridHuntGame:
         new_pos = list(self.agent_pos)
 
         if action == 'Up':
+            self.facing_direction = 'Up'
             new_pos[1] = min(self.height - 1, new_pos[1] + 1)
         elif action == 'Down':
+            self.facing_direction = 'Down'
             new_pos[1] = max(0, new_pos[1] - 1)
         elif action == 'Left':
+            self.facing_direction = 'Left'
             new_pos[0] = max(0, new_pos[0] - 1)
         elif action == 'Right':
+            self.facing_direction = 'Right'
             new_pos[0] = min(self.width - 1, new_pos[0] + 1)
 
         if tuple(new_pos) in self.walls:
