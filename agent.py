@@ -86,7 +86,7 @@ class SearchAgent:
 
     def __init__(self):
         self.plan = []
-        self.active_algo = 'UCS' #choose from BFS, DFS, UCS
+        self.active_algo = 'ASTAR' #choose from BFS, DFS, UCS, ASTAR
 
     def sense_and_act(self, percept: dict) -> str:
         if percept.get('food_here'):
@@ -178,6 +178,41 @@ class SearchAgent:
         x2, y2 = goal
         return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
 
+    def astar_search(self, start_pos, goal_pos, walls, grid_size, heuristic_type='manhattan'):
+        """Return the lowest estimated-cost path from start to goal using A*."""
+        start = tuple(start_pos)
+        goal = tuple(goal_pos)
+        wall_set = set(walls)
+        reached_states = set()
+
+        h_cost = self._heuristic(start, goal, heuristic_type)
+        frontier = [(h_cost, 0, start, [])]
+
+        while frontier:
+            f_cost, g_cost, current_pos, path_taken = heapq.heappop(frontier)
+
+            if current_pos == goal:
+                return path_taken
+
+            if current_pos in reached_states:
+                continue
+
+            reached_states.add(current_pos)
+
+            for action, next_pos in self._successors(current_pos, wall_set, grid_size):
+                if next_pos not in reached_states:
+                    new_g_cost = g_cost + 1
+                    new_h_cost = self._heuristic(next_pos, goal, heuristic_type)
+                    new_f_cost = new_g_cost + new_h_cost
+                    heapq.heappush(frontier, (new_f_cost, new_g_cost, next_pos, path_taken + [action]))
+
+        return None
+
+    def _heuristic(self, pos, goal, heuristic_type):
+        if heuristic_type == 'euclidean':
+            return self.euclidean_distance(pos, goal)
+        return self.manhattan_distance(pos, goal)
+
     def _successors(self, state, walls, grid_size):
         width, height = grid_size
         x, y = state
@@ -206,6 +241,8 @@ class SearchAgent:
             return self.dfs_search(start_pos, goal_pos, walls, grid_size)
         if self.active_algo == 'UCS':
             return self.ucs_search(start_pos, goal_pos, walls, grid_size)
+        if self.active_algo == 'ASTAR':
+            return self.astar_search(start_pos, goal_pos, walls, grid_size)
         return self.bfs_search(start_pos, goal_pos, walls, grid_size)
 
 
