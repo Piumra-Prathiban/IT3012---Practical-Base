@@ -1,4 +1,6 @@
 # agent.py
+from collections import deque
+import heapq
 import random
 
 
@@ -69,6 +71,131 @@ class ModelBasedAgent:
             if position not in self.visited_cells:
                 return action
         return 'Up'
+
+
+class SearchAgent:
+    """An offline planning agent with uninformed graph search strategies."""
+
+    ACTIONS = (
+        ('Up', (0, 1)),
+        ('Right', (1, 0)),
+        ('Down', (0, -1)),
+        ('Left', (-1, 0))
+    )
+
+    def __init__(self):
+        self.plan = []
+        self.active_algo = 'UCS' #choose from BFS, DFS, UCS
+
+    def sense_and_act(self, percept: dict) -> str:
+        if percept.get('food_here'):
+            self.plan = []
+            return 'Suck'
+
+        if not self.plan:
+            start_pos = tuple(percept['agent_pos'])
+            food_positions = [tuple(food) for food in percept.get('all_food', [])]
+            walls = percept.get('walls', [])
+            grid_size = percept['grid_size']
+            self.plan = self._plan_to_closest_food(start_pos, food_positions, walls, grid_size)
+
+        if self.plan:
+            return self.plan.pop(0)
+        return 'Up'
+
+    def bfs_search(self, start_pos, goal_pos, walls, grid_size):
+        """Return the shortest unweighted path from start to goal using BFS."""
+        start = tuple(start_pos)
+        goal = tuple(goal_pos)
+        wall_set = set(walls)
+        frontier = deque([(start, [])])
+        reached = {start}
+
+        while frontier:
+            state, path = frontier.popleft()
+            if state == goal:
+                return path
+
+            for action, next_state in self._successors(state, wall_set, grid_size):
+                if next_state not in reached:
+                    reached.add(next_state)
+                    frontier.append((next_state, path + [action]))
+
+        return None
+
+    def dfs_search(self, start_pos, goal_pos, walls, grid_size):
+        """Return a path from start to goal using DFS."""
+        start = tuple(start_pos)
+        goal = tuple(goal_pos)
+        wall_set = set(walls)
+        frontier = [(start, [])]
+        reached = {start}
+
+        while frontier:
+            state, path = frontier.pop()
+            if state == goal:
+                return path
+
+            for action, next_state in self._successors(state, wall_set, grid_size):
+                if next_state not in reached:
+                    reached.add(next_state)
+                    frontier.append((next_state, path + [action]))
+
+        return None
+
+    def ucs_search(self, start_pos, goal_pos, walls, grid_size):
+        """Return the lowest-cost path from start to goal using UCS."""
+        start = tuple(start_pos)
+        goal = tuple(goal_pos)
+        wall_set = set(walls)
+        frontier = [(0, start, [])]
+        reached = {start: 0}
+
+        while frontier:
+            cost, state, path = heapq.heappop(frontier)
+            if state == goal:
+                return path
+
+            if cost > reached[state]:
+                continue
+
+            for action, next_state in self._successors(state, wall_set, grid_size):
+                new_cost = cost + 1
+                if next_state not in reached or new_cost < reached[next_state]:
+                    reached[next_state] = new_cost
+                    heapq.heappush(frontier, (new_cost, next_state, path + [action]))
+
+        return None
+
+    def _successors(self, state, walls, grid_size):
+        width, height = grid_size
+        x, y = state
+
+        for action, (dx, dy) in self.ACTIONS:
+            next_state = (x + dx, y + dy)
+            if self._is_valid_position(next_state, walls, width, height):
+                yield action, next_state
+
+    def _is_valid_position(self, position, walls, width, height):
+        x, y = position
+        return 0 <= x < width and 0 <= y < height and position not in walls
+
+    def _plan_to_closest_food(self, start_pos, food_positions, walls, grid_size):
+        best_path = None
+
+        for food_pos in food_positions:
+            path = self._run_active_search(start_pos, food_pos, walls, grid_size)
+            if path is not None and (best_path is None or len(path) < len(best_path)):
+                best_path = path
+
+        return best_path or []
+
+    def _run_active_search(self, start_pos, goal_pos, walls, grid_size):
+        if self.active_algo == 'DFS':
+            return self.dfs_search(start_pos, goal_pos, walls, grid_size)
+        if self.active_algo == 'UCS':
+            return self.ucs_search(start_pos, goal_pos, walls, grid_size)
+        return self.bfs_search(start_pos, goal_pos, walls, grid_size)
 
 
 class GreedyGridAgent:
