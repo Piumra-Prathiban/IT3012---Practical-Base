@@ -83,6 +83,26 @@ class SearchAgent:
         ('Left', (-1, 0))
     )
 
+    def __init__(self):
+        self.plan = []
+        self.active_algo = 'UCS' #choose from BFS, DFS, UCS
+
+    def sense_and_act(self, percept: dict) -> str:
+        if percept.get('food_here'):
+            self.plan = []
+            return 'Suck'
+
+        if not self.plan:
+            start_pos = tuple(percept['agent_pos'])
+            food_positions = [tuple(food) for food in percept.get('all_food', [])]
+            walls = percept.get('walls', [])
+            grid_size = percept['grid_size']
+            self.plan = self._plan_to_closest_food(start_pos, food_positions, walls, grid_size)
+
+        if self.plan:
+            return self.plan.pop(0)
+        return 'Up'
+
     def bfs_search(self, start_pos, goal_pos, walls, grid_size):
         """Return the shortest unweighted path from start to goal using BFS."""
         start = tuple(start_pos)
@@ -159,6 +179,23 @@ class SearchAgent:
     def _is_valid_position(self, position, walls, width, height):
         x, y = position
         return 0 <= x < width and 0 <= y < height and position not in walls
+
+    def _plan_to_closest_food(self, start_pos, food_positions, walls, grid_size):
+        best_path = None
+
+        for food_pos in food_positions:
+            path = self._run_active_search(start_pos, food_pos, walls, grid_size)
+            if path is not None and (best_path is None or len(path) < len(best_path)):
+                best_path = path
+
+        return best_path or []
+
+    def _run_active_search(self, start_pos, goal_pos, walls, grid_size):
+        if self.active_algo == 'DFS':
+            return self.dfs_search(start_pos, goal_pos, walls, grid_size)
+        if self.active_algo == 'UCS':
+            return self.ucs_search(start_pos, goal_pos, walls, grid_size)
+        return self.bfs_search(start_pos, goal_pos, walls, grid_size)
 
 
 class GreedyGridAgent:
