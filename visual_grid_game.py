@@ -117,10 +117,18 @@ class GridGameGUI:
     def __init__(self, root, width=10, height=10, num_food=12, num_opponents=2, walls=None):
         self.root = root
         self.root.title("IT3012 - Scalable Multi-Agent Grid Hunt")
+        self.width = width
+        self.height = height
+        self.num_food = num_food
+        self.num_opponents = num_opponents
+        self.walls = walls
 
         self.env = VisualGridHuntGame(width=width, height=height, num_food=num_food, num_opponents=num_opponents,
                                       custom_walls=walls)
         self.agent = SearchAgent()
+        self.algorithms = ['BFS', 'DFS', 'UCS', 'AStar']
+        self.running = False
+        self.after_id = None
 
         # Dynamically calculate cell size so the total canvas fits nicely within a 600x600 window ceiling
         max_canvas_dim = 600
@@ -135,11 +143,43 @@ class GridGameGUI:
         self.label = tk.Label(root, text="Score: 0 | Steps: 0", font=("Arial", 14))
         self.label.pack(pady=10)
 
+        self.algo_btn = tk.Button(root, text=f"Algorithm: {self.agent.active_algo}", command=self.change_algorithm,
+                                  font=("Arial", 12), bg="#334155", fg="white")
+        self.algo_btn.pack(pady=5)
+
         self.btn = tk.Button(root, text="Start Simulation", command=self.run_loop, font=("Arial", 12), bg="#000066",
                              fg="white")
         self.btn.pack(pady=5)
 
+        self.stop_btn = tk.Button(root, text="Stop Simulation", command=self.stop_loop, font=("Arial", 12), bg="#7f1d1d",
+                                  fg="white", state="disabled")
+        self.stop_btn.pack(pady=5)
+
         self.draw_grid()
+
+    def change_algorithm(self):
+        current_index = self.algorithms.index(self.agent.active_algo)
+        next_index = (current_index + 1) % len(self.algorithms)
+        self.agent.active_algo = self.algorithms[next_index]
+        self.agent.plan = []
+        self.algo_btn.config(text=f"Algorithm: {self.agent.active_algo}")
+
+    def reset_simulation(self):
+        self.env = VisualGridHuntGame(width=self.width, height=self.height, num_food=self.num_food,
+                                      num_opponents=self.num_opponents, custom_walls=self.walls)
+        self.agent.plan = []
+        self.draw_grid()
+        self.label.config(text="Score: 0 | Steps: 0")
+
+    def stop_loop(self):
+        self.running = False
+        if self.after_id is not None:
+            self.root.after_cancel(self.after_id)
+            self.after_id = None
+        self.btn.config(state="normal")
+        self.algo_btn.config(state="normal")
+        self.stop_btn.config(state="disabled")
+        self.label.config(text=f"Stopped | Score: {self.env.score} | Steps: {self.env.steps}")
 
     def draw_grid(self):
         self.canvas.delete("all")
@@ -181,9 +221,21 @@ class GridGameGUI:
                                 outline="#1e3a8a")
 
     def run_loop(self):
+        if self.running:
+            return
+
+        if self.env.is_done():
+            self.reset_simulation()
+
+        self.running = True
         self.btn.config(state="disabled")
+        self.algo_btn.config(state="disabled")
+        self.stop_btn.config(state="normal")
 
         def step():
+            if not self.running:
+                return
+
             if not self.env.is_done():
                 percept = self.env.get_percept()
                 action = self.agent.sense_and_act(percept)
@@ -191,11 +243,18 @@ class GridGameGUI:
 
                 self.draw_grid()
                 self.label.config(text=f"Score: {self.env.score} | Steps: {self.env.steps} | Action: {action}")
-                self.root.after(250, step)
+                self.after_id = self.root.after(250, step)
             else:
-                end_text = f"Collision! Game Over! Final Score: {self.env.score}" if self.env.collision else f"Finished! Final Score: {self.env.score}"
+                self.running = False
+                self.after_id = None
+                if self.env.collision:
+                    end_text = f"Collision! Game Over! Final Score: {self.env.score} | Steps: {self.env.steps}"
+                else:
+                    end_text = f"Finished! Final Score: {self.env.score} | Steps: {self.env.steps}"
                 self.label.config(text=end_text)
                 self.btn.config(state="normal")
+                self.algo_btn.config(state="normal")
+                self.stop_btn.config(state="disabled")
 
         step()
 
