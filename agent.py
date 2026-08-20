@@ -1,6 +1,7 @@
 # agent.py
 from collections import deque
 import heapq
+import math
 import random
 
 
@@ -167,6 +168,16 @@ class SearchAgent:
 
         return None
 
+    def manhattan_distance(self, pos, goal):
+        x1, y1 = pos
+        x2, y2 = goal
+        return abs(x1 - x2) + abs(y1 - y2)
+
+    def euclidean_distance(self, pos, goal):
+        x1, y1 = pos
+        x2, y2 = goal
+        return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+
     def _successors(self, state, walls, grid_size):
         width, height = grid_size
         x, y = state
@@ -209,3 +220,9 @@ class GreedyGridAgent:
         pos = percept['agent_pos']
         # Simple heuristic or fallback random sweep
         return random.choice(self.actions_pool)
+
+
+if __name__ == "__main__":
+    agent = SearchAgent()
+    print("Manhattan:", agent.manhattan_distance((0, 0), (3, 4)))
+    print("Euclidean:", agent.euclidean_distance((0, 0), (3, 4)))
