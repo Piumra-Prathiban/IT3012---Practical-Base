@@ -86,7 +86,7 @@ class SearchAgent:
 
     def __init__(self):
         self.plan = []
-        self.active_algo = 'ASTAR' #choose from BFS, DFS, UCS, ASTAR
+        self.active_algo = 'AStar' #choose from BFS, DFS, UCS, AStar
 
     def sense_and_act(self, percept: dict) -> str:
         if percept.get('food_here'):
@@ -237,11 +237,13 @@ class SearchAgent:
         return best_path or []
 
     def _run_active_search(self, start_pos, goal_pos, walls, grid_size):
-        if self.active_algo == 'DFS':
+        active_algo = self.active_algo.upper()
+
+        if active_algo == 'DFS':
             return self.dfs_search(start_pos, goal_pos, walls, grid_size)
-        if self.active_algo == 'UCS':
+        if active_algo == 'UCS':
             return self.ucs_search(start_pos, goal_pos, walls, grid_size)
-        if self.active_algo == 'ASTAR':
+        if active_algo == 'ASTAR':
             return self.astar_search(start_pos, goal_pos, walls, grid_size)
         return self.bfs_search(start_pos, goal_pos, walls, grid_size)
 
