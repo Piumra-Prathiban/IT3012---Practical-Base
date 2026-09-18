@@ -14,22 +14,17 @@ class KnowledgeBase:
         self.facts.clear()
 
     def forward_chain(self):
-        inferred = set()
+        new_facts_added = True
 
-        while True:
-            changed = False
+        while new_facts_added:
+            new_facts_added = False
+
             for premises, conclusion in self.rules:
-                if conclusion in self.facts:
-                    continue
-                if all(premise in self.facts for premise in premises):
-                    self.facts.add(conclusion)
-                    inferred.add(conclusion)
-                    changed = True
-
-            if not changed:
-                break
-
-        return inferred
+                if conclusion not in self.facts:
+                    # Modus Ponens check
+                    if all(premise in self.facts for premise in premises):
+                        self.facts.add(conclusion)
+                        new_facts_added = True
 
     def ask(self, fact_string):
         if fact_string in self.facts:

@@ -4,6 +4,8 @@ import heapq
 import math
 import random
 
+from logic_engine import KnowledgeBase
+
 
 class SimpleReflexAgent:
     """A stateless condition-action agent for partial percepts."""
@@ -87,6 +89,10 @@ class SearchAgent:
     def __init__(self):
         self.plan = []
         self.active_algo = 'AStar' #choose from BFS, DFS, UCS, AStar
+        self.kb = KnowledgeBase()
+        self.kb.tell_rule(['TargetVisible', 'HasDust'], 'SafeToEngage')
+        self.kb.tell_rule(['SafeToEngage', 'BloodseekerMissing'], 'Retreat')
+        self.tile_percepts = {}
 
     def sense_and_act(self, percept: dict) -> str:
         if percept.get('food_here'):
@@ -178,7 +184,7 @@ class SearchAgent:
         x2, y2 = goal
         return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
 
-    def astar_search(self, start_pos, goal_pos, walls, grid_size, heuristic_type='manhattan'):
+    def astar_search(self, start_pos, goal_pos, walls, grid_size, heuristic_type='manhattan', tile_percepts=None):
         """Return the lowest estimated-cost path from start to goal using A*."""
         start = tuple(start_pos)
         goal = tuple(goal_pos)
@@ -201,12 +207,26 @@ class SearchAgent:
 
             for action, next_pos in self._successors(current_pos, wall_set, grid_size):
                 if next_pos not in reached_states:
+                    if not self._tile_is_feasible(next_pos, tile_percepts):
+                        continue
+
                     new_g_cost = g_cost + 1
                     new_h_cost = self._heuristic(next_pos, goal, heuristic_type)
                     new_f_cost = new_g_cost + new_h_cost
                     heapq.heappush(frontier, (new_f_cost, new_g_cost, next_pos, path_taken + [action]))
 
         return None
+
+    def _tile_is_feasible(self, position, tile_percepts=None):
+        """Consult the KB for a tile's percepts; a deduced 'Retreat' makes it infeasible."""
+        percepts = self.tile_percepts if tile_percepts is None else tile_percepts
+
+        self.kb.clear_facts()
+        for fact in percepts.get(position, ()):
+            self.kb.tell_fact(fact)
+        self.kb.forward_chain()
+
+        return 'Retreat' not in self.kb.facts
 
     def _heuristic(self, pos, goal, heuristic_type):
         if heuristic_type == 'euclidean':
